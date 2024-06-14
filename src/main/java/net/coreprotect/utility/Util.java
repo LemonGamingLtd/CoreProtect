@@ -56,7 +56,7 @@ import net.coreprotect.bukkit.BukkitAdapter;
 import net.coreprotect.config.Config;
 import net.coreprotect.config.ConfigHandler;
 import net.coreprotect.consumer.Queue;
-import net.coreprotect.database.Rollback;
+import net.coreprotect.database.rollback.Rollback;
 import net.coreprotect.language.Phrase;
 import net.coreprotect.model.BlockGroup;
 import net.coreprotect.thread.CacheHandler;
@@ -1039,6 +1039,10 @@ public class Util extends Queue {
 
             name = BukkitAdapter.ADAPTER.parseLegacyName(name);
             material = Material.getMaterial(name);
+
+            if (material == null) {
+                material = Material.getMaterial(name, true);
+            }
         }
 
         return material;
@@ -1308,7 +1312,7 @@ public class Util extends Queue {
 
     public static boolean isFolia() {
         try {
-            Class.forName("io.papermc.paper.threadedregions.ThreadedRegionizer");
+            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
         }
         catch (Exception e) {
             return false;
@@ -1411,7 +1415,7 @@ public class Util extends Queue {
         Map<String, Object> itemMap = new HashMap<>();
         if (itemStack != null && !itemStack.getType().equals(Material.AIR)) {
             ItemStack item = itemStack.clone();
-            List<List<Map<String, Object>>> metadata = ItemMetaHandler.seralize(item, null, faceData, slot);
+            List<List<Map<String, Object>>> metadata = ItemMetaHandler.serialize(item, null, faceData, slot);
             item.setItemMeta(null);
             itemMap.put("0", item.serialize());
             itemMap.put("1", metadata);

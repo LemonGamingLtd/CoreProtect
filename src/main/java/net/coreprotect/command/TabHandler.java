@@ -317,6 +317,11 @@ public class TabHandler implements TabCompleter {
                         materialList.add(add.name().toLowerCase(Locale.ROOT));
                     }
 
+                    // add custom tags
+                    for (String tag : CommandHandler.getTags().keySet()) {
+                        materialList.add(tag);
+                    }
+
                     materials = new ArrayList<>(materialList);
                 }
 
