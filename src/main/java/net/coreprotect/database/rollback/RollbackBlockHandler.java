@@ -39,6 +39,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
+import net.coreprotect.api.BlockDataProviderData;
+import net.coreprotect.api.BlockDataProviderRegistry;
 import net.coreprotect.bukkit.BukkitAdapter;
 import net.coreprotect.config.ConfigHandler;
 import net.coreprotect.consumer.Queue;
@@ -46,18 +48,27 @@ import net.coreprotect.model.BlockGroup;
 import net.coreprotect.paper.PaperAdapter;
 import net.coreprotect.thread.CacheHandler;
 import net.coreprotect.utility.BlockUtils;
+import net.coreprotect.utility.Chat;
 import net.coreprotect.utility.ChestTool;
 import net.coreprotect.utility.EntityUtils;
 import net.coreprotect.utility.ItemUtils;
 import net.coreprotect.utility.Util;
+import net.coreprotect.utility.WorldUtils;
 import net.coreprotect.utility.entity.HangingUtil;
 
 public class RollbackBlockHandler extends Queue {
+
+    private static final Map<String, byte[]> pendingProviderData = new java.util.concurrent.ConcurrentHashMap<>();
 
     public static boolean processBlockChange(World bukkitWorld, Block block, Object[] row, int rollbackType, boolean clearInventories, Map<Block, BlockData> chunkChanges, boolean countBlock, Material oldTypeMaterial, Material pendingChangeType, BlockData pendingChangeData, String finalUserString, BlockData rawBlockData, Material changeType, boolean changeBlock, BlockData changeBlockData, ArrayList<Object> meta, BlockData blockData, String rowUser, Material rowType, int rowX, int rowY, int rowZ, int rowTypeRaw, int rowData, int rowAction, int rowWorldId, String blockDataString) {
         int unixtimestamp = (int) (System.currentTimeMillis() / 1000L);
 
         try {
+            byte[] providerData = extractProviderData(meta);
+            if (providerData != null && rowType != Material.AIR) {
+                String blockKey = rowX + ":" + rowY + ":" + rowZ + ":" + rowWorldId;
+                pendingProviderData.put(blockKey, providerData);
+            }
             if (changeBlock) {
                 /* If modifying the head of a piston, update the base piston block to prevent it from being destroyed */
                 if (changeBlockData instanceof PistonHead) {
@@ -528,8 +539,59 @@ public class RollbackBlockHandler extends Queue {
             }
             else {
                 BlockUtils.setTypeAndData(changeBlock, null, changeBlockData, true);
+                restoreProviderData(changeBlock);
             }
         }
         chunkChanges.clear();
+    }
+
+    /**
+     * Extracts BlockDataProviderData from the meta list if present.
+     * Also removes the provider data from the list so it doesn't interfere with other processing.
+     *
+     * @param meta
+     *            The metadata list to search
+     * @return The provider data bytes, or null if not present
+     */
+    private static byte[] extractProviderData(ArrayList<Object> meta) {
+        if (meta == null) {
+            return null;
+        }
+
+        byte[] providerData = null;
+        java.util.Iterator<Object> iterator = meta.iterator();
+        while (iterator.hasNext()) {
+            Object value = iterator.next();
+            if (value instanceof BlockDataProviderData) {
+                providerData = ((BlockDataProviderData) value).getData();
+                iterator.remove();
+                break;
+            }
+        }
+
+        return providerData;
+    }
+
+    /**
+     * Restores provider data for a block if any is pending.
+     *
+     * @param block
+     *            The block to restore data to
+     */
+    private static void restoreProviderData(Block block) {
+        String blockKey = block.getX() + ":" + block.getY() + ":" + block.getZ() + ":" + WorldUtils.getWorldId(block.getWorld().getName());
+        byte[] providerData = pendingProviderData.remove(blockKey);
+
+        if (providerData != null) {
+            BlockDataProviderRegistry.restoreCustomData(block, providerData);
+        }
+    }
+
+    /**
+     * Clears any pending provider data.
+     * Should be called when a rollback is complete or cancelled.
+     */
+    public static void clearPendingProviderData() {
+        pendingProviderData.clear();
     }
 }

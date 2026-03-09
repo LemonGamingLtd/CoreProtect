@@ -21,6 +21,8 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import net.coreprotect.CoreProtect;
+import net.coreprotect.api.BlockDataProviderData;
+import net.coreprotect.api.BlockDataProviderRegistry;
 import net.coreprotect.bukkit.BukkitAdapter;
 import net.coreprotect.thread.Scheduler;
 
@@ -253,6 +255,13 @@ public class BlockUtils {
                         meta.add(itemMap);
                     }
                     slot++;
+                }
+            }
+
+            if (BlockDataProviderRegistry.hasProvidersForMaterial(block.getType())) {
+                byte[] providerData = BlockDataProviderRegistry.serializeCustomData(block);
+                if (providerData != null && providerData.length > 0) {
+                    meta.add(new BlockDataProviderData(providerData));
                 }
             }
         }

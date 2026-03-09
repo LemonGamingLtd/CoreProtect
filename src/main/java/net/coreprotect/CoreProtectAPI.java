@@ -18,6 +18,8 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 
 import net.coreprotect.api.BlockAPI;
+import net.coreprotect.api.BlockDataProvider;
+import net.coreprotect.api.BlockDataProviderRegistry;
 import net.coreprotect.api.QueueLookup;
 import net.coreprotect.api.SessionLookup;
 import net.coreprotect.config.Config;
@@ -903,5 +905,43 @@ public class CoreProtectAPI extends Queue {
      */
     private boolean isValidUserAndLocation(String user, Location location) {
         return user != null && location != null && !user.isEmpty();
+    }
+
+    /**
+     * Registers a BlockDataProvider to handle custom block data during logging and rollbacks.
+     *
+     * @param provider
+     *            The BlockDataProvider to register
+     * @return True if registration was successful, false if a provider with the same ID already exists
+     * @see BlockDataProvider
+     */
+    public boolean registerBlockDataProvider(BlockDataProvider provider) {
+        if (!isEnabled()) {
+            return false;
+        }
+        return BlockDataProviderRegistry.register(provider);
+    }
+
+    /**
+     * Unregisters a BlockDataProvider by its ID.
+     * This should be called when your plugin is disabled to clean up.
+     *
+     * @param providerId
+     *            The unique identifier of the provider to unregister
+     * @return True if the provider was unregistered, false if it wasn't registered
+     */
+    public boolean unregisterBlockDataProvider(String providerId) {
+        return BlockDataProviderRegistry.unregister(providerId);
+    }
+
+    /**
+     * Checks if a BlockDataProvider is registered with the given ID.
+     *
+     * @param providerId
+     *            The unique identifier to check
+     * @return True if a provider with that ID is registered
+     */
+    public boolean hasBlockDataProvider(String providerId) {
+        return BlockDataProviderRegistry.isRegistered(providerId);
     }
 }
