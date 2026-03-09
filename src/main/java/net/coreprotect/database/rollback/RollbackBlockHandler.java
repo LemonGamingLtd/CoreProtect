@@ -256,6 +256,8 @@ public class RollbackBlockHandler extends Queue {
                         mobSpawner.setSpawnedType(EntityUtils.getSpawnerType(rowData));
                         mobSpawner.update();
 
+                        restoreProviderData(block);
+
                         return countBlock;
                     }
                     catch (Exception e) {
