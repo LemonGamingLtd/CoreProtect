@@ -1,6 +1,9 @@
 package net.coreprotect.database.lookup;
 
+import net.coreprotect.api.BlockDataProviderData;
+import net.coreprotect.api.BlockDataProviderRegistry;
 import net.coreprotect.config.ConfigHandler;
+import net.coreprotect.database.rollback.RollbackUtil;
 import net.coreprotect.database.statement.UserStatement;
 import net.coreprotect.language.Phrase;
 import net.coreprotect.language.Selector;
@@ -12,6 +15,7 @@ import org.bukkit.command.CommandSender;
 
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.List;
 import java.util.Locale;
 
 public class BlockLookup {
@@ -63,7 +67,7 @@ public class BlockLookup {
             results.close();
             int totalPages = (int) Math.ceil(count / (limit + 0.0));
 
-            query = "SELECT time,user,action,type,data,rolled_back FROM " + ConfigHandler.prefix + "block " + WorldUtils.getWidIndex("block") + "WHERE wid = '" + worldId + "' AND x = '" + x + "' AND z = '" + z + "' AND y = '" + y + "' AND action IN(0,1) AND time >= '" + checkTime + "' ORDER BY rowid DESC LIMIT " + page_start + ", " + limit + "";
+            query = "SELECT time,user,action,type,data,meta,rolled_back FROM " + ConfigHandler.prefix + "block " + WorldUtils.getWidIndex("block") + "WHERE wid = '" + worldId + "' AND x = '" + x + "' AND z = '" + z + "' AND y = '" + y + "' AND action IN(0,1) AND time >= '" + checkTime + "' ORDER BY rowid DESC LIMIT " + page_start + ", " + limit + "";
             results = statement.executeQuery(query);
 
             StringBuilder resultTextBuilder = new StringBuilder();
@@ -73,6 +77,7 @@ public class BlockLookup {
                 int resultAction = results.getInt("action");
                 int resultType = results.getInt("type");
                 int resultData = results.getInt("data");
+                byte[] resultMeta = results.getBytes("meta");
                 long resultTime = results.getLong("time");
                 int resultRolledBack = results.getInt("rolled_back");
 
@@ -128,7 +133,12 @@ public class BlockLookup {
                     target = target.split(":")[1];
                 }
 
-                resultTextBuilder.append(timeAgo + " " + tag + " ").append(Phrase.build(phrase, Color.DARK_AQUA + rbFormat + resultUser + Color.WHITE + rbFormat, Color.DARK_AQUA + rbFormat + target + Color.WHITE, selector)).append("\n");
+                String tooltip = getProviderTooltip(resultMeta);
+                String targetDisplay = tooltip.isEmpty() 
+                    ? Color.DARK_AQUA + rbFormat + target + Color.WHITE 
+                    : ChatUtils.createTooltip(Color.DARK_AQUA + rbFormat + target, tooltip) + Color.WHITE;
+
+                resultTextBuilder.append(timeAgo + " " + tag + " ").append(Phrase.build(phrase, Color.DARK_AQUA + rbFormat + resultUser + Color.WHITE + rbFormat, targetDisplay, selector)).append("\n");
                 PluginChannelListener.getInstance().sendData(commandSender, resultTime, phrase, selector, resultUser, target, -1, x, y, z, worldId, rbFormat, false, tag.contains("+"));
             }
 
@@ -163,6 +173,34 @@ public class BlockLookup {
             e.printStackTrace();
         }
         return resultText;
+    }
+
+    /**
+     * Extracts provider tooltip from block metadata.
+     *
+     * @param meta The raw metadata bytes
+     * @return Tooltip string or empty string if no provider data
+     */
+    private static String getProviderTooltip(byte[] meta) {
+        if (meta == null) {
+            return "";
+        }
+
+        try {
+            List<Object> metaList = RollbackUtil.deserializeMetadata(meta);
+            if (metaList == null) {
+                return "";
+            }
+
+            for (Object obj : metaList) {
+                if (obj instanceof BlockDataProviderData) {
+                    byte[] providerData = ((BlockDataProviderData) obj).getData();
+                    return BlockDataProviderRegistry.getTooltip(providerData);
+                }
+            }
+        } catch (Exception e) {}
+
+        return "";
     }
 
 }

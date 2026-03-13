@@ -222,6 +222,48 @@ public class BlockDataProviderRegistry {
     }
 
     /**
+     * Generates tooltip text from provider data for lookup results.
+     *
+     * @param customData The combined serialized data from all providers
+     * @return Tooltip text, or empty string if no tooltip available
+     */
+    public static String getTooltip(byte[] customData) {
+        if (customData == null || customData.length == 0) {
+            return "";
+        }
+
+        StringBuilder tooltip = new StringBuilder();
+
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(customData);
+            DataInputStream dis = new DataInputStream(bais)) {
+
+            int providerCount = dis.readInt();
+
+            for (int i = 0; i < providerCount; i++) {
+                String providerId = dis.readUTF();
+                int dataLength = dis.readInt();
+                byte[] data = new byte[dataLength];
+                dis.readFully(data);
+
+                BlockDataProvider provider = providers.get(providerId.toLowerCase());
+                if (provider != null) {
+                    try {
+                        String providerTooltip = provider.getTooltip(data);
+                        if (providerTooltip != null && !providerTooltip.isEmpty()) {
+                            if (tooltip.length() > 0) {
+                                tooltip.append("\n");
+                            }
+                            tooltip.append(providerTooltip);
+                        }
+                    } catch (Exception e) {}
+                }
+            }
+        } catch (IOException e) {}
+
+        return tooltip.toString();
+    }
+
+    /**
      * Clears all registered providers.
      */
     public static void clear() {

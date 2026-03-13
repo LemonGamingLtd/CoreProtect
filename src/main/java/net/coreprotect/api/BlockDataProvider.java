@@ -41,4 +41,14 @@ public interface BlockDataProvider {
      * @param customData The custom data that was previously serialized, or null if none was stored
      */
     void restore(Block block, byte[] customData);
+
+    /**
+     * Generates tooltip text for lookup results.
+     *
+     * @param customData The custom data that was previously serialized
+     * @return Tooltip text to display, or null/empty if no tooltip should be shown
+     */
+    default String getTooltip(byte[] customData) {
+        return null;
+    }
 }

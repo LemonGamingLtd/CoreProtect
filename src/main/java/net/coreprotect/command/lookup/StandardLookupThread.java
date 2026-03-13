@@ -17,11 +17,14 @@ import org.bukkit.command.CommandSender;
 
 import com.google.common.base.Strings;
 
+import net.coreprotect.api.BlockDataProviderData;
+import net.coreprotect.api.BlockDataProviderRegistry;
 import net.coreprotect.config.ConfigHandler;
 import net.coreprotect.database.Database;
 import net.coreprotect.database.Lookup;
 import net.coreprotect.database.logger.ItemLogger;
 import net.coreprotect.database.lookup.PlayerLookup;
+import net.coreprotect.database.rollback.RollbackUtil;
 import net.coreprotect.database.statement.UserStatement;
 import net.coreprotect.language.Phrase;
 import net.coreprotect.language.Selector;
@@ -429,7 +432,13 @@ public class StandardLookupThread implements Runnable {
                                         tag = (daction != 0 ? Color.GREEN + "+" : Color.RED + "-");
                                     }
 
-                                    Chat.sendComponent(player, timeago + " " + tag + " " + Phrase.build(phrase, Color.DARK_AQUA + rbd + dplayer + Color.WHITE + rbd, Color.DARK_AQUA + rbd + dname + Color.WHITE, selector));
+                                    byte[] blockMeta = data[11] == null ? null : data[11].getBytes(StandardCharsets.ISO_8859_1);
+                                    String blockTooltip = getProviderTooltip(blockMeta);
+                                    String targetDisplay = blockTooltip.isEmpty()
+                                        ? Color.DARK_AQUA + rbd + dname + Color.WHITE
+                                        : ChatUtils.createTooltip(Color.DARK_AQUA + rbd + dname, blockTooltip) + Color.WHITE;
+
+                                    Chat.sendComponent(player, timeago + " " + tag + " " + Phrase.build(phrase, Color.DARK_AQUA + rbd + dplayer + Color.WHITE + rbd, targetDisplay, selector));
                                     PluginChannelListener.getInstance().sendData(player, Integer.parseInt(time), phrase, selector, dplayer, dname, (tag.contains("+") ? 1 : -1), dataX, dataY, dataZ, wid, rbd, false, tag.contains("+"));
                                 }
 
@@ -466,5 +475,30 @@ public class StandardLookupThread implements Runnable {
         }
 
         ConfigHandler.lookupThrottle.put(player.getName(), new Object[] { false, System.currentTimeMillis() });
+    }
+
+    /**
+     * Extracts provider tooltip from block metadata.
+     */
+    private static String getProviderTooltip(byte[] meta) {
+        if (meta == null) {
+            return "";
+        }
+
+        try {
+            java.util.List<Object> metaList = RollbackUtil.deserializeMetadata(meta);
+            if (metaList == null) {
+                return "";
+            }
+
+            for (Object obj : metaList) {
+                if (obj instanceof BlockDataProviderData) {
+                    byte[] providerData = ((BlockDataProviderData) obj).getData();
+                    return BlockDataProviderRegistry.getTooltip(providerData);
+                }
+            }
+        } catch (Exception e) {}
+
+        return "";
     }
 }
