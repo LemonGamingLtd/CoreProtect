@@ -16,6 +16,7 @@ import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import net.coreprotect.api.BlockAPI;
 import net.coreprotect.api.BlockDataProvider;
@@ -23,6 +24,7 @@ import net.coreprotect.api.BlockDataProviderRegistry;
 import net.coreprotect.api.QueueLookup;
 import net.coreprotect.api.SessionLookup;
 import net.coreprotect.config.Config;
+import net.coreprotect.config.ConfigHandler;
 import net.coreprotect.consumer.Queue;
 import net.coreprotect.database.Database;
 import net.coreprotect.database.Lookup;
@@ -293,6 +295,44 @@ public class CoreProtectAPI extends Queue {
         }
 
         return InventoryChangeListener.inventoryTransaction(user, location, null);
+    }
+
+    /**
+     * Logs item destruction/disposal by a user.
+     * 
+     * @param user
+     *            The username
+     * @param location
+     *            The location where items were destroyed
+     * @param items
+     *            The items that were destroyed
+     * @return True if the items were logged
+     */
+    public boolean logItemDestroy(String user, Location location, ItemStack... items) {
+        if (!isEnabled() || !isValidUserAndLocation(user, location) || items == null || items.length == 0) {
+            return false;
+        }
+
+        String loggingItemId = user.toLowerCase(java.util.Locale.ROOT) + "." + location.getBlockX() + "." + location.getBlockY() + "." + location.getBlockZ();
+
+        java.util.List<ItemStack> destroyList = ConfigHandler.itemsDestroy.getOrDefault(loggingItemId, new java.util.ArrayList<>());
+        for (ItemStack item : items) {
+            if (item != null && !item.getType().isAir() && item.getAmount() > 0) {
+                destroyList.add(item.clone());
+            }
+        }
+
+        if (destroyList.isEmpty()) {
+            return false;
+        }
+
+        ConfigHandler.itemsDestroy.put(loggingItemId, destroyList);
+
+        int itemId = Queue.getItemId(loggingItemId);
+        int time = (int) (System.currentTimeMillis() / 1000L) + 1;
+        Queue.queueItemTransaction(user, location.clone(), time, 0, itemId);
+
+        return true;
     }
 
     /**
