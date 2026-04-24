@@ -118,7 +118,7 @@ public final class ListenerHandler {
 
         // Paper Listeners / Fallbacks (Player Listeners)
         try {
-            Class.forName("net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer"); // Paper 1.16+
+            Class.forName("io.papermc.paper.event.player.AsyncChatEvent"); // Paper 1.19+
             pluginManager.registerEvents(new PaperChatListener(), plugin);
         }
         catch (Exception e) {
