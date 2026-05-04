@@ -15,6 +15,7 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -30,6 +31,7 @@ import net.coreprotect.database.Database;
 import net.coreprotect.database.Lookup;
 import net.coreprotect.database.rollback.Rollback;
 import net.coreprotect.language.Phrase;
+import net.coreprotect.listener.entity.EntityDeathListener;
 import net.coreprotect.listener.player.InventoryChangeListener;
 import net.coreprotect.utility.Chat;
 import net.coreprotect.utility.MaterialUtils;
@@ -332,6 +334,24 @@ public class CoreProtectAPI extends Queue {
         int time = (int) (System.currentTimeMillis() / 1000L) + 1;
         Queue.queueItemTransaction(user, location.clone(), time, 0, itemId);
 
+        return true;
+    }
+
+    /**
+     * Logs an entity kill/removal by a user.
+     *
+     * @param user
+     *            The username or system actor
+     * @param entity
+     *            The entity being removed
+     * @return True if the entity was submitted for logging
+     */
+    public boolean logEntityKill(String user, LivingEntity entity) {
+        if (!isEnabled() || entity == null || user == null || user.isEmpty() || !Config.getConfig(entity.getWorld()).ENTITY_KILLS) {
+            return false;
+        }
+
+        EntityDeathListener.logEntityDeath(entity, user);
         return true;
     }
 

@@ -116,17 +116,17 @@ public final class EntityDeathListener extends Queue implements Listener {
         }
     }
 
-    protected static void logEntityDeath(LivingEntity entity, String e) {
+    public static void logEntityDeath(LivingEntity entity, String e) {
         if (!Config.getConfig(entity.getWorld()).ENTITY_KILLS) {
             return;
         }
 
         EntityDamageEvent damage = entity.getLastDamageCause();
-        if (damage == null) {
+        if (damage == null && (e == null || e.isEmpty())) {
             return;
         }
 
-        boolean isCommand = (damage.getCause() == DamageCause.VOID && entity.getLocation().getBlockY() >= BukkitAdapter.ADAPTER.getMinHeight(entity.getWorld()));
+        boolean isCommand = (damage != null && damage.getCause() == DamageCause.VOID && entity.getLocation().getBlockY() >= BukkitAdapter.ADAPTER.getMinHeight(entity.getWorld()));
         if (e == null) {
             e = isCommand ? "#command" : "";
         }
@@ -138,8 +138,8 @@ public final class EntityDeathListener extends Queue implements Listener {
         List<DamageCause> validDamageCauses = Arrays.asList(DamageCause.SUICIDE, DamageCause.POISON, DamageCause.THORNS, DamageCause.MAGIC, DamageCause.WITHER);
 
         boolean skip = true;
-        EntityDamageEvent.DamageCause cause = damage.getCause();
-        if (!Config.getConfig(entity.getWorld()).SKIP_GENERIC_DATA || (!(entity instanceof Zombie) && !(entity instanceof Skeleton)) || (validDamageCauses.contains(cause) || cause.name().equals("KILL"))) {
+        EntityDamageEvent.DamageCause cause = damage == null ? null : damage.getCause();
+        if (!Config.getConfig(entity.getWorld()).SKIP_GENERIC_DATA || (!(entity instanceof Zombie) && !(entity instanceof Skeleton)) || (validDamageCauses.contains(cause) || (cause != null && cause.name().equals("KILL")))) {
             skip = false;
         }
 
