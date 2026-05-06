@@ -465,6 +465,24 @@ public class CoreProtectAPI extends Queue {
     }
 
     /**
+     * Logs an entity removal by a user, regardless of the entity-kills configuration.
+     *
+     * @param user
+     *            The username or system actor
+     * @param entity
+     *            The entity being removed
+     * @return True if the entity was submitted for logging
+     */
+    public boolean logEntityRemoval(String user, LivingEntity entity) {
+        if (!isEnabled() || entity == null || user == null || user.isEmpty()) {
+            return false;
+        }
+
+        EntityDeathListener.logEntityRemoval(entity, user);
+        return true;
+    }
+
+    /**
      * Logs a block placement by a user.
      * 
      * @param user

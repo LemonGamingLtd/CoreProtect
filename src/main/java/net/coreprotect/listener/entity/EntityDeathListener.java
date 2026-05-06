@@ -125,12 +125,20 @@ public final class EntityDeathListener extends Queue implements Listener {
     }
 
     public static void logEntityDeath(LivingEntity entity, String e) {
-        if (!Config.getConfig(entity.getWorld()).ENTITY_KILLS) {
+        logEntityDeath(entity, e, true, true, true);
+    }
+
+    public static void logEntityRemoval(LivingEntity entity, String e) {
+        logEntityDeath(entity, e, false, false, false);
+    }
+
+    private static void logEntityDeath(LivingEntity entity, String e, boolean respectEntityKillConfig, boolean inferDamageSource, boolean suppressDuplicates) {
+        if (respectEntityKillConfig && !Config.getConfig(entity.getWorld()).ENTITY_KILLS) {
             return;
         }
 
         EntityDamageEvent damage = entity.getLastDamageCause();
-        if (damage == null && (e == null || e.isEmpty())) {
+        if (inferDamageSource && damage == null && (e == null || e.isEmpty())) {
             return;
         }
 
@@ -139,7 +147,7 @@ public final class EntityDeathListener extends Queue implements Listener {
             e = isCommand ? "#command" : "";
         }
 
-        if (entity.getType().name().equals("GLOW_SQUID") && damage.getCause() == DamageCause.DROWNING) {
+        if (inferDamageSource && damage != null && entity.getType().name().equals("GLOW_SQUID") && damage.getCause() == DamageCause.DROWNING) {
             return;
         }
 
@@ -151,7 +159,7 @@ public final class EntityDeathListener extends Queue implements Listener {
             skip = false;
         }
 
-        if (damage instanceof EntityDamageByEntityEvent) {
+        if (inferDamageSource && damage instanceof EntityDamageByEntityEvent) {
             EntityDamageByEntityEvent attack = (EntityDamageByEntityEvent) damage;
             Entity attacker = attack.getDamager();
 
@@ -195,7 +203,7 @@ public final class EntityDeathListener extends Queue implements Listener {
                 e = "#" + attacker.getType().name().toLowerCase(Locale.ROOT);
             }
         }
-        else {
+        else if (inferDamageSource && cause != null) {
             if (cause.equals(EntityDamageEvent.DamageCause.FIRE)) {
                 e = "#fire";
             }
@@ -270,7 +278,7 @@ public final class EntityDeathListener extends Queue implements Listener {
             e = "#lightning";
         }
 
-        if (Config.getConfig(entity.getWorld()).DUPLICATE_SUPPRESSION && shouldSuppressEntityKill(e, entity, cause)) {
+        if (suppressDuplicates && Config.getConfig(entity.getWorld()).DUPLICATE_SUPPRESSION && shouldSuppressEntityKill(e, entity, cause)) {
             return;
         }
 
