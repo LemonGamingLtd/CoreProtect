@@ -1,13 +1,16 @@
 package net.coreprotect.api;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.bukkit.Location;
 import org.bukkit.block.Block;
 
+import net.coreprotect.api.result.ContainerResult;
 import net.coreprotect.config.Config;
 import net.coreprotect.config.ConfigHandler;
 import net.coreprotect.database.Database;
@@ -97,5 +100,116 @@ public class BlockAPI {
         }
 
         return result;
+    }
+
+    /**
+     * Performs a lookup of container transactions at the specified location.
+     * 
+     * @param location
+     *            The location to look up
+     * @param offset
+     *            Time constraint in seconds (0 means no time constraint)
+     * @return List of results in a ContainerResult format
+     */
+    public static List<ContainerResult> performContainerLookup(Location location, int offset) {
+        return performContainerLookup(location, offset, 0);
+    }
+
+    /**
+     * Performs a lookup of container transactions around the specified location.
+     * 
+     * @param location
+     *            The center location to look up
+     * @param offset
+     *            Time constraint in seconds (0 means no time constraint)
+     * @param radius
+     *            Radius to search in the X/Z plane (0 means exact location)
+     * @return List of results in a ContainerResult format
+     */
+    public static List<ContainerResult> performContainerLookup(Location location, int offset, int radius) {
+        List<ContainerResult> result = new ArrayList<>();
+
+        if (!Config.getGlobal().API_ENABLED) {
+            return result;
+        }
+
+        if (location == null || location.getWorld() == null) {
+            return result;
+        }
+
+        try (Connection connection = Database.getConnection(false, 1000)) {
+            if (connection == null) {
+                return result;
+            }
+
+            int x = location.getBlockX();
+            int y = location.getBlockY();
+            int z = location.getBlockZ();
+            int time = (int) (System.currentTimeMillis() / 1000L);
+            int worldId = WorldUtils.getWorldId(location.getWorld().getName());
+            int checkTime = 0;
+
+            if (offset > 0) {
+                checkTime = time - offset;
+            }
+
+            String query = "SELECT time,user,action,type,data,amount,metadata,rolled_back,x,y,z FROM " + ConfigHandler.prefix + "container " + WorldUtils.getWidIndex("container") + "WHERE wid = ? AND x = ? AND z = ? AND y = ? AND time > ? ORDER BY rowid DESC";
+            if (radius > 0) {
+                query = "SELECT time,user,action,type,data,amount,metadata,rolled_back,x,y,z FROM " + ConfigHandler.prefix + "container " + WorldUtils.getWidIndex("container") + "WHERE wid = ? AND x >= ? AND x <= ? AND z >= ? AND z <= ? AND time > ? ORDER BY rowid DESC";
+            }
+
+            try (PreparedStatement statement = connection.prepareStatement(query)) {
+                statement.setInt(1, worldId);
+                if (radius > 0) {
+                    statement.setInt(2, clampToInt((long) x - radius));
+                    statement.setInt(3, clampToInt((long) x + radius));
+                    statement.setInt(4, clampToInt((long) z - radius));
+                    statement.setInt(5, clampToInt((long) z + radius));
+                    statement.setInt(6, checkTime);
+                }
+                else {
+                    statement.setInt(2, x);
+                    statement.setInt(3, z);
+                    statement.setInt(4, y);
+                    statement.setInt(5, checkTime);
+                }
+
+                try (ResultSet results = statement.executeQuery()) {
+                    while (results.next()) {
+                        result.add(parseContainerResult(connection, results, location.getWorld().getName()));
+                    }
+                }
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return result;
+    }
+
+    private static ContainerResult parseContainerResult(Connection connection, ResultSet results, String worldName) throws Exception {
+        int resultUserId = results.getInt("user");
+        String resultUser = ConfigHandler.playerIdCacheReversed.get(resultUserId);
+        if (resultUser == null) {
+            resultUser = UserStatement.loadName(connection, resultUserId);
+        }
+
+        return new ContainerResult(
+                results.getLong("time"), resultUser, worldName, results.getInt("x"), results.getInt("y"), results.getInt("z"),
+                results.getInt("type"), results.getInt("data"), results.getInt("amount"), results.getBytes("metadata"),
+                results.getInt("action"), results.getInt("rolled_back")
+        );
+    }
+
+    private static int clampToInt(long value) {
+        if (value > Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
+        else if (value < Integer.MIN_VALUE) {
+            return Integer.MIN_VALUE;
+        }
+
+        return (int) value;
     }
 }
