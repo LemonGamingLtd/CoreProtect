@@ -27,7 +27,7 @@ import net.coreprotect.utility.WorldUtils;
 
 public class LookupRaw extends Queue {
 
-    protected static List<Object[]> performLookupRaw(Statement statement, CommandSender user, List<String> checkUuids, List<String> checkUsers, List<Object> restrictList, Map<Object, Boolean> excludeList, List<String> excludeUserList, List<Integer> actionList, Location location, Integer[] radius, Long[] rowData, long startTime, long endTime, int limitOffset, int limitCount, boolean restrictWorld, boolean lookup) {
+    protected static List<Object[]> performLookupRaw(Statement statement, CommandSender user, List<String> checkUuids, List<String> checkUsers, List<Object> restrictList, Map<Object, Boolean> excludeList, List<String> excludeUserList, List<String> exemptUserList, List<Integer> actionList, Location location, Integer[] radius, Long[] rowData, long startTime, long endTime, int limitOffset, int limitCount, boolean restrictWorld, boolean lookup) {
         List<Object[]> list = new ArrayList<>();
         List<Integer> invalidRollbackActions = new ArrayList<>();
         invalidRollbackActions.add(2);
@@ -47,7 +47,7 @@ public class LookupRaw extends Queue {
 
             Consumer.isPaused = true;
 
-            ResultSet results = rawLookupResultSet(statement, user, checkUuids, checkUsers, restrictList, excludeList, excludeUserList, actionList, location, radius, rowData, startTime, endTime, limitOffset, limitCount, restrictWorld, lookup, false);
+            ResultSet results = rawLookupResultSet(statement, user, checkUuids, checkUsers, restrictList, excludeList, excludeUserList, exemptUserList, actionList, location, radius, rowData, startTime, endTime, limitOffset, limitCount, restrictWorld, lookup, false);
 
             while (results.next()) {
                 if (actionList.contains(6) || actionList.contains(7)) {
@@ -219,7 +219,7 @@ public class LookupRaw extends Queue {
         return list;
     }
 
-    static ResultSet rawLookupResultSet(Statement statement, CommandSender user, List<String> checkUuids, List<String> checkUsers, List<Object> restrictList, Map<Object, Boolean> excludeList, List<String> excludeUserList, List<Integer> actionList, Location location, Integer[] radius, Long[] rowData, long startTime, long endTime, int limitOffset, int limitCount, boolean restrictWorld, boolean lookup, boolean count) {
+    static ResultSet rawLookupResultSet(Statement statement, CommandSender user, List<String> checkUuids, List<String> checkUsers, List<Object> restrictList, Map<Object, Boolean> excludeList, List<String> excludeUserList, List<String> exemptUserList, List<Integer> actionList, Location location, Integer[] radius, Long[] rowData, long startTime, long endTime, int limitOffset, int limitCount, boolean restrictWorld, boolean lookup, boolean count) {
         ResultSet results = null;
 
         try {
@@ -395,6 +395,37 @@ public class LookupRaw extends Queue {
                 }
 
                 excludeUsers = excludeUserText.toString();
+            }
+
+            if (exemptUserList.size() > 0) {
+                StringBuilder exemptUserText = new StringBuilder();
+
+                for (String exemptTarget : exemptUserList) {
+                    if (ConfigHandler.playerIdCache.get(exemptTarget.toLowerCase(Locale.ROOT)) == null) {
+                        UserStatement.loadId(statement.getConnection(), exemptTarget, null);
+                    }
+
+                    Integer userId = ConfigHandler.playerIdCache.get(exemptTarget.toLowerCase(Locale.ROOT));
+                    if (userId == null) {
+                        continue;
+                    }
+
+                    if (exemptUserText.length() == 0) {
+                        exemptUserText = exemptUserText.append(userId);
+                    }
+                    else {
+                        exemptUserText.append(",").append(userId);
+                    }
+                }
+
+                if (exemptUserText.length() > 0) {
+                    if (excludeUsers.length() == 0) {
+                        excludeUsers = exemptUserText.toString();
+                    }
+                    else {
+                        excludeUsers = excludeUsers + "," + exemptUserText;
+                    }
+                }
             }
 
             // Specify actions to exclude from a:item

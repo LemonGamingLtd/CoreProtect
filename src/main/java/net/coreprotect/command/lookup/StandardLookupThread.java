@@ -46,6 +46,7 @@ public class StandardLookupThread implements Runnable {
     private final List<Object> blockList;
     private final Map<Object, Boolean> excludedBlocks;
     private final List<String> excludedUsers;
+    private final List<String> exemptUsers;
     private final List<Integer> actions;
     private final Integer[] radius;
     private final Location location;
@@ -65,13 +66,14 @@ public class StandardLookupThread implements Runnable {
     private final String rtime;
     private final boolean count;
 
-    public StandardLookupThread(CommandSender player, Command command, List<String> rollbackUsers, List<Object> blockList, Map<Object, Boolean> excludedBlocks, List<String> excludedUsers, List<Integer> actions, Integer[] radius, Location location, int x, int y, int z, int worldId, int argWorldId, long timeStart, long timeEnd, int noisy, int excluded, int restricted, int page, int displayResults, int typeLookup, String rtime, boolean count) {
+    public StandardLookupThread(CommandSender player, Command command, List<String> rollbackUsers, List<Object> blockList, Map<Object, Boolean> excludedBlocks, List<String> excludedUsers, List<String> exemptUsers, List<Integer> actions, Integer[] radius, Location location, int x, int y, int z, int worldId, int argWorldId, long timeStart, long timeEnd, int noisy, int excluded, int restricted, int page, int displayResults, int typeLookup, String rtime, boolean count) {
         this.player = player;
         this.command = command;
         this.rollbackUsers = rollbackUsers;
         this.blockList = blockList;
         this.excludedBlocks = excludedBlocks;
         this.excludedUsers = excludedUsers;
+        this.exemptUsers = exemptUsers;
         this.actions = actions;
         this.radius = radius;
         this.location = location;
@@ -187,7 +189,7 @@ public class StandardLookupThread implements Runnable {
                     }
 
                     if (checkRows) {
-                        rows = Lookup.countLookupRows(statement, player, uuidList, userList, blockList, excludedBlocks, excludedUsers, actions, finalLocation, radius, rowData, timeStart, timeEnd, restrict_world, true);
+                        rows = Lookup.countLookupRows(statement, player, uuidList, userList, blockList, excludedBlocks, excludedUsers, exemptUsers, actions, finalLocation, radius, rowData, timeStart, timeEnd, restrict_world, true);
                         rowData[3] = rows;
                         ConfigHandler.lookupRows.put(player.getName(), rowData);
                     }
@@ -196,7 +198,7 @@ public class StandardLookupThread implements Runnable {
                         Chat.sendMessage(player, Color.DARK_AQUA + "CoreProtect " + Color.WHITE + "- " + Phrase.build(Phrase.LOOKUP_ROWS_FOUND, row_format, (rows == 1 ? Selector.FIRST : Selector.SECOND)));
                     }
                     else if (pageStart < rows) {
-                        List<String[]> lookupList = Lookup.performPartialLookup(statement, player, uuidList, userList, blockList, excludedBlocks, excludedUsers, actions, finalLocation, radius, rowData, timeStart, timeEnd, (int) pageStart, displayResults, restrict_world, true);
+                        List<String[]> lookupList = Lookup.performPartialLookup(statement, player, uuidList, userList, blockList, excludedBlocks, excludedUsers, exemptUsers, actions, finalLocation, radius, rowData, timeStart, timeEnd, (int) pageStart, displayResults, restrict_world, true);
 
                         Chat.sendMessage(player, Color.WHITE + "----- " + Color.DARK_AQUA + Phrase.build(Phrase.LOOKUP_HEADER, "CoreProtect" + Color.WHITE + " | " + Color.DARK_AQUA) + Color.WHITE + " -----");
                         if (actions.contains(6) || actions.contains(7)) { // Chat/command
